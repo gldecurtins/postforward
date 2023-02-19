@@ -34,7 +34,7 @@ parser.add_argument(
 )
 
 
-def getSRSReturnPath(address, SRSHOST, SRSPORT):
+def _getSRSReturnPath(address, SRSHOST, SRSPORT):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((SRSHOST, SRSPORT))
         try:
@@ -59,7 +59,7 @@ def _getRFC5322DateTime():
     return email.utils.format_datetime(email.utils.localtime())
 
 
-def rewriteHeader(message, originalReturnPath, SRSReturnPath):
+def _rewriteHeader(message, originalReturnPath, SRSReturnPath):
     message.add_header(
         "Received", "by %s (Postforward); %s" % (_getHostname(), _getRFC5322DateTime())
     )
@@ -78,9 +78,9 @@ def main():
     stdin = "".join(sys.stdin.readlines())
     originalMessage = Parser(policy=default).parsestr(stdin)
     originalReturnPath = originalMessage[RETURNPATHHEADER].lstrip("<").rstrip(">")
-    SRSReturnPath = getSRSReturnPath(originalReturnPath, SRSHOST, SRSPORT)
+    SRSReturnPath = _getSRSReturnPath(originalReturnPath, SRSHOST, SRSPORT)
 
-    rewrittenMessage = rewriteHeader(
+    rewrittenMessage = _rewriteHeader(
         message=originalMessage,
         originalReturnPath=originalReturnPath,
         SRSReturnPath=SRSReturnPath,
