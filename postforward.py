@@ -9,6 +9,7 @@ from email.parser import Parser
 from email.policy import default
 
 parser = argparse.ArgumentParser(description="Postfix SRS forwarding agent.")
+parser.add_argument("to")
 parser.add_argument(
     "--dry-run",
     required=False,
@@ -43,7 +44,7 @@ def _getSRSReturnPath(address, SRSHOST, SRSPORT):
             result = sock.recv(512).decode()
             resultCode = int(result[:3])
             if resultCode == 200:
-                resultSRSReturnPath = str(result[4:])
+                resultSRSReturnPath = str(result[4:]).strip()
                 return resultSRSReturnPath
             else:
                 pass
@@ -59,38 +60,32 @@ def _getRFC5322DateTime():
     return email.utils.format_datetime(email.utils.localtime())
 
 
-def _rewriteHeader(message, originalReturnPath, SRSReturnPath):
-    message.add_header(
-        "Received", "by %s (Postforward); %s" % (_getHostname(), _getRFC5322DateTime())
-    )
-    message.add_header("X-Original-Return-Path", originalReturnPath)
-    message.replace_header("Return-Path", SRSReturnPath)
-    return message
-
-
 def main():
     args = parser.parse_args()
+    TO = str(args.to)
     DRYRUN = bool(args.dryrun)
     RETURNPATHHEADER = str(args.rpheader)
     SRSHOST = str(args.srsaddr.split(":")[0])
     SRSPORT = int(args.srsaddr.split(":")[1])
 
-    stdin = "".join(sys.stdin.readlines())
-    originalMessage = Parser(policy=default).parsestr(stdin)
-    originalReturnPath = originalMessage[RETURNPATHHEADER].lstrip("<").rstrip(">")
-    SRSReturnPath = _getSRSReturnPath(originalReturnPath, SRSHOST, SRSPORT)
+    message = Parser(policy=default).parsestr(sys.stdin.read())
+    returnPath = message[RETURNPATHHEADER].lstrip("<").rstrip(">")
+    SRSReturnPath = _getSRSReturnPath(returnPath, SRSHOST, SRSPORT)
 
-    rewrittenMessage = _rewriteHeader(
-        message=originalMessage,
-        originalReturnPath=originalReturnPath,
-        SRSReturnPath=SRSReturnPath,
+    message.add_header(
+        "Received", "by %s (Postforward); %s" % (_getHostname(), _getRFC5322DateTime())
     )
+    message.add_header("X-Original-Return-Path", SRSReturnPath)
+    message.replace_header("Return-Path", SRSReturnPath)
 
+    sendmailArgs = ["sendmail", "-i", "-f", SRSReturnPath, TO]
     if DRYRUN == True:
-        print(rewrittenMessage)
+        print("Would call sendmail with args: %s" % " ".join(sendmailArgs))
+        print("Would pipe the folliwng data into sendmail:\n")
+        print(message)
     else:
-        sendmail = Popen(["sendmail", "-t", "-oi"], stdin=PIPE)
-        sendmail.communicate(rewrittenMessage.as_bytes())
+        sendmail = Popen(sendmailArgs, stdin=PIPE)
+        sendmail.communicate(message.as_bytes())
 
 
 if __name__ == "__main__":
