@@ -82,10 +82,10 @@ def main():
     if DRYRUN == True:
         print("Would call sendmail with args: %s" % " ".join(sendmailArgs))
         print("Would pipe the folliwng data into sendmail:\n")
-        print(message)
+        print(message.as_string())
     else:
-        sendmail = Popen(sendmailArgs, stdin=PIPE)
-        sendmail.communicate(message.as_bytes())
+        sendmail = Popen(sendmailArgs, stdin=PIPE, universal_newlines=True)
+        sendmail.communicate(message.as_string())
 
 
 if __name__ == "__main__":

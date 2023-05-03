@@ -1,0 +1,19 @@
+Return-Path: <from@elpmaxe.com>
+Delivered-To: to@example.com
+Received: from example.com
+	by example.com with LMTP
+	(envelope-from <to@example.com>)
+	for <to@example.com>; Sat, 04 Feb 2023 16:31:01 +0100
+From: From <from@elpmaxe.com>
+Content-Type: text/plain;
+	charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Mime-Version: 1.0 (Mac OS X Mail 16.0 \(3731.400.51.1.1\))
+Subject: Test subject
+Message-Id: <11111111-2222-3333-4444-555555555555@example.com>
+Date: Sat, 4 Feb 2023 16:30:46 +0100
+To: To <to@example.com>
+
+Test Body
+ABCDEFGHIJKLMNOPQRSTUVWXYZ-ÄÖÜ
+abcdefghijklmnopqrstuvwxyz-äöü
