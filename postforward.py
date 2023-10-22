@@ -26,28 +26,24 @@ parser.add_argument(
     help="Header name containing the mail from value. Default: Return-Path",
 )
 parser.add_argument(
-    "--srs-addr",
+    "--srs-path",
     type=str,
-    dest="srsaddr",
+    dest="srspath",
     required=False,
-    default="localhost:10001",
-    help="TCP address for SRS lookups. Default: localhost:10001",
+    default="/var/spool/postfix/srs",
+    help="Socket path for SRS lookups. Default: /var/spool/postfix/srs",
 )
 
 
-def _getSRSReturnPath(address, SRSHOST, SRSPORT):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((SRSHOST, SRSPORT))
+def _getSRSReturnPath(address, SRSPATH):
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0) as sock:
+        sock.connect(SRSPATH)
         try:
-            command = "get %s\n" % address
-            sock.sendall(command.encode())
-            result = sock.recv(512).decode()
-            resultCode = int(result[:3])
-            if resultCode == 200:
-                resultSRSReturnPath = str(result[4:]).strip()
-                return resultSRSReturnPath
-            else:
-                pass
+            query = f"forward {address}"
+            query_bytes = f"{len(query)}:{query},".encode()
+            sock.sendall(query_bytes)
+            response = sock.recv(4096).decode()
+            return response
         finally:
             sock.close()
 
@@ -65,12 +61,11 @@ def main():
     TO = str(args.to)
     DRYRUN = bool(args.dryrun)
     RETURNPATHHEADER = str(args.rpheader)
-    SRSHOST = str(args.srsaddr.split(":")[0])
-    SRSPORT = int(args.srsaddr.split(":")[1])
+    SRSPATH = str(args.srspath)
 
     message = Parser(policy=default).parsestr(sys.stdin.read())
     returnPath = message[RETURNPATHHEADER].lstrip("<").rstrip(">")
-    SRSReturnPath = _getSRSReturnPath(returnPath, SRSHOST, SRSPORT)
+    SRSReturnPath = _getSRSReturnPath(returnPath, SRSPATH)
 
     message.add_header(
         "Received", "by %s (Postforward); %s" % (_getHostname(), _getRFC5322DateTime())
