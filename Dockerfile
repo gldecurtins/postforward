@@ -20,4 +20,5 @@ VOLUME ["/var/spool/postfix"]
 
 WORKDIR /usr/src
 
-CMD ["postsrsd"]
+COPY entrypoint.sh /usr/local/bin/
+CMD ["entrypoint.sh", "postsrsd"]

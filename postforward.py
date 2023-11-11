@@ -35,14 +35,58 @@ parser.add_argument(
 )
 
 
+class SockStream:
+    def __init__(self, sock):
+        self._sock = sock
+        self._rdbuf = b""
+
+    def read(self, size):
+        result = b""
+        remaining = size
+        while remaining > len(self._rdbuf):
+            result += self._rdbuf
+            remaining -= len(self._rdbuf)
+            self._rdbuf = self._sock.recv(4096)
+            if len(self._rdbuf) == 0:
+                raise ConnectionError("no data")
+        result += self._rdbuf[:remaining]
+        self._rdbuf = self._rdbuf[remaining:]
+        return result
+
+    def write(self, data):
+        self._sock.sendall(data)
+
+
+def _write_netstring(sock_stream, data):
+    data_bytes = data.encode()
+    sock_stream.write(f"{len(data_bytes)}:".encode() + data_bytes + b",")
+
+
+def _read_netstring(sock_stream):
+    digit = sock_stream.read(1)
+    data_size = 0
+    while digit >= b"0" and digit <= b"9":
+        data_size = 10 * data_size + int(digit)
+        digit = sock_stream.read(1)
+    if digit != b":":
+        print("ERR: ':' expected")
+        return None
+    data = sock_stream.read(data_size)
+    comma = sock_stream.read(1)
+    if comma != b",":
+        print("ERR: ',' expected")
+        return None
+    return data.decode()
+
+
 def _getSRSReturnPath(address, SRSPATH):
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0) as sock:
         sock.connect(SRSPATH)
+        sock_stream = SockStream(sock)
         try:
             query = f"forward {address}"
-            query_bytes = f"{len(query)}:{query},".encode()
-            sock.sendall(query_bytes)
-            response = sock.recv(4096).decode()
+            _write_netstring(sock_stream, query)
+            response = _read_netstring(sock_stream)
             return response
         finally:
             sock.close()
